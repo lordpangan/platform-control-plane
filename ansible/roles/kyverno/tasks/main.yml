@@ -1,0 +1,23 @@
+---
+# Install Kyverno via Helm (idempotent: helm upgrade --install).
+- name: Add the Kyverno helm repo
+  ansible.builtin.command: "helm repo add {{ kyverno_chart_repo_name }} {{ kyverno_chart_repo_url }} --force-update"
+  register: repo_add
+  changed_when: "'has been added' in repo_add.stdout"
+
+- name: Update the Kyverno helm repo
+  ansible.builtin.command: "helm repo update {{ kyverno_chart_repo_name }}"
+  changed_when: false
+
+- name: Install/upgrade Kyverno
+  ansible.builtin.command: >-
+    helm upgrade --install kyverno
+    {{ kyverno_chart_repo_name }}/kyverno
+    --kube-context {{ kube_context }}
+    --namespace {{ kyverno_namespace }} --create-namespace
+    --version {{ kyverno_chart_version }}
+    --wait --timeout 300s
+  register: kyverno_install
+  changed_when: >-
+    'has been upgraded' in kyverno_install.stdout
+    or 'has been installed' in kyverno_install.stdout

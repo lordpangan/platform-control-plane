@@ -1,0 +1,53 @@
+---
+# Install the toolchain on a fresh Debian/Ubuntu VM.
+# Only runs when bootstrap_host=true (the proxmox inventory). Local runs skip
+# this entirely and rely on devbox/brew for the tools.
+- name: Install docker and base packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - curl
+      - ca-certificates
+      - apt-transport-https
+    state: present
+    update_cache: true
+
+- name: Ensure the docker service is running and enabled
+  become: true
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add the SSH user to the docker group
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_user_id }}"
+    groups: docker
+    append: true
+  # NOTE: group membership needs a new login to take effect. If kind can't reach
+  # docker on the first run, reconnect (or re-run the playbook) and it works.
+
+- name: Install kubectl
+  become: true
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/{{ kubectl_download_version }}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: "0755"
+
+- name: Install kind
+  become: true
+  ansible.builtin.get_url:
+    url: "https://kind.sigs.k8s.io/dl/{{ kind_download_version }}/kind-linux-amd64"
+    dest: /usr/local/bin/kind
+    mode: "0755"
+
+- name: Install helm
+  become: true
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/helm

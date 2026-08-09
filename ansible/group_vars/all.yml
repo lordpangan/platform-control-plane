@@ -1,0 +1,51 @@
+---
+# ---------------------------------------------------------------------------
+# Pinned versions and settings for the management cluster ("the brain").
+# Bump these deliberately — check upstream release notes before changing.
+#
+# Versions verified against upstream (Helm repo indexes, kind releases,
+# dl.k8s.io) on 2026-08-09 — all set to the latest STABLE (non-RC) at that time.
+# ---------------------------------------------------------------------------
+
+# --- kind cluster ---
+kind_cluster_name: platform-brain
+# Digest-pinned (immutable) — the default node image for kind v0.32.0 (k8s v1.36.1).
+# Set to "" in an inventory to let the installed kind pick its own default image
+# (use that when the target's kind version is older than v0.32.0).
+kind_node_image: "kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5"
+kind_config_path: "{{ playbook_dir }}/../kind/config.yaml"     # source, on the controller (Mac)
+kind_config_remote: "/tmp/platform-brain-kind-config.yaml"    # staged copy, on the target
+kube_context: "kind-{{ kind_cluster_name }}"
+
+# Extra dir appended to PATH on the target so Ansible finds tools that aren't on
+# the default PATH (e.g. the devbox-global bin dir on the VM). Empty = no change.
+tools_path: ""
+
+# --- Crossplane (helm) ---
+# chart 2.3.4 installs Crossplane v2 (app 2.3.4). v2 uses the namespaced
+# apiextensions.crossplane.io/v2 API — consistent with backstack's XRDs.
+crossplane_namespace: crossplane-system
+crossplane_chart_repo_name: crossplane-stable
+crossplane_chart_repo_url: "https://charts.crossplane.io/stable"
+crossplane_chart_version: "2.3.4"
+
+# --- Kyverno (helm) ---
+# chart 3.8.2 installs Kyverno app v1.18.2
+kyverno_namespace: kyverno
+kyverno_chart_repo_name: kyverno
+kyverno_chart_repo_url: "https://kyverno.github.io/kyverno/"
+kyverno_chart_version: "3.8.2"
+
+# --- ArgoCD (helm, argo/argo-cd chart) ---
+# chart 10.3.0 installs Argo CD app v3.5.0
+argocd_namespace: argocd
+argocd_chart_repo_name: argo
+argocd_chart_repo_url: "https://argoproj.github.io/argo-helm"
+argocd_chart_version: "10.3.0"
+
+# --- VM bootstrap (only used by the proxmox inventory) ---
+# When true, install docker/kind/kubectl/helm on a Debian/Ubuntu VM first.
+# Left false for local runs, where devbox (or brew) already provides the tools.
+bootstrap_host: false
+kubectl_download_version: "v1.36.1"   # matches the kind node image (k8s v1.36.1)
+kind_download_version: "v0.32.0"

@@ -1,0 +1,21 @@
+# secrets / creds — never commit
+*.env
+.env
+*.pem
+*.key
+kubeconfig
+*-kubeconfig
+.secrets/
+
+# ansible
+*.retry
+# real VM inventory — keep host details out of git (commit the .example only)
+ansible/inventories/proxmox/hosts.yml
+
+# devbox
+.devbox/
+
+# local / editor
+.DS_Store
+.vscode/
+.idea/

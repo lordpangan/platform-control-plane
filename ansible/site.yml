@@ -1,0 +1,39 @@
+---
+# Build the management cluster ("the brain").
+# Same roles for local and VM — the inventory decides where they run.
+#
+#   local:   ansible-playbook -i inventories/local    site.yml
+#   the VM:  ansible-playbook -i inventories/proxmox   site.yml
+#
+# (The Makefile wraps these as `make up` / `make up-vm`.)
+- name: Build the management cluster (the brain)
+  hosts: all
+  gather_facts: true
+  # Append tools_path (e.g. the VM's devbox-global bin) so non-login Ansible
+  # shells can find kind/kubectl/helm. Empty on local runs → PATH unchanged.
+  environment:
+    # ansible_env (not ansible_facts.env) on purpose: it tolerates being unset
+    # during the initial fact-gathering task; deprecation warning is silenced via env.
+    PATH: "{{ ansible_env.PATH }}{{ (':' ~ tools_path) if (tools_path | default('') | length > 0) else '' }}"
+  roles:
+    # Only runs when bootstrap_host=true (the proxmox inventory): installs
+    # docker/kind/kubectl/helm on a fresh Debian/Ubuntu VM.
+    - role: bootstrap
+      when: bootstrap_host | default(false) | bool
+      tags: [bootstrap]
+
+    # Fails early with a clear message if a required tool is missing.
+    - role: preflight
+      tags: [preflight]
+
+    # Create the kind cluster (idempotent — skips if it already exists).
+    - role: kind_cluster
+      tags: [cluster]
+
+    # The three platform components, via Helm.
+    - role: crossplane
+      tags: [crossplane, components]
+    - role: kyverno
+      tags: [kyverno, components]
+    - role: argocd
+      tags: [argocd, components]

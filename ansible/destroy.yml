@@ -1,0 +1,16 @@
+---
+# Tear down the management cluster ("the brain") on the target.
+# Same PATH handling as site.yml so it finds kind on the VM's devbox toolchain.
+#
+#   the VM:  ansible-playbook -i inventories/proxmox/hosts.yml destroy.yml
+#   (wrapped as `make down-vm`)
+- name: Tear down the management cluster (the brain)
+  hosts: all
+  gather_facts: true
+  environment:
+    PATH: "{{ ansible_env.PATH }}{{ (':' ~ tools_path) if (tools_path | default('') | length > 0) else '' }}"
+  tasks:
+    - name: Delete the kind cluster (idempotent — no error if absent)
+      ansible.builtin.command: "kind delete cluster --name {{ kind_cluster_name }}"
+      register: kind_delete
+      changed_when: "'Deleting cluster' in (kind_delete.stderr + kind_delete.stdout)"

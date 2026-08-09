@@ -1,0 +1,30 @@
+---
+# Install ArgoCD via Helm (argo/argo-cd chart; idempotent).
+- name: Add the Argo helm repo
+  ansible.builtin.command: "helm repo add {{ argocd_chart_repo_name }} {{ argocd_chart_repo_url }} --force-update"
+  register: repo_add
+  changed_when: "'has been added' in repo_add.stdout"
+
+- name: Update the Argo helm repo
+  ansible.builtin.command: "helm repo update {{ argocd_chart_repo_name }}"
+  changed_when: false
+
+- name: Install/upgrade ArgoCD
+  ansible.builtin.command: >-
+    helm upgrade --install argocd
+    {{ argocd_chart_repo_name }}/argo-cd
+    --kube-context {{ kube_context }}
+    --namespace {{ argocd_namespace }} --create-namespace
+    --version {{ argocd_chart_version }}
+    --wait --timeout 600s
+  register: argocd_install
+  changed_when: >-
+    'has been upgraded' in argocd_install.stdout
+    or 'has been installed' in argocd_install.stdout
+
+- name: How to reach ArgoCD
+  ansible.builtin.debug:
+    msg:
+      - "ArgoCD installed in namespace '{{ argocd_namespace }}'."
+      - "Admin password:  kubectl -n {{ argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+      - "Port-forward UI:  kubectl -n {{ argocd_namespace }} port-forward svc/argocd-server 8080:443"

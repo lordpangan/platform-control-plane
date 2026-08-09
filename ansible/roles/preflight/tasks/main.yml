@@ -1,0 +1,24 @@
+---
+# Fail fast with a helpful message if the toolchain isn't ready.
+- name: Check required tools are on PATH
+  ansible.builtin.shell: "command -v {{ item }}"
+  register: tool_check
+  changed_when: false
+  failed_when: tool_check.rc != 0
+  loop:
+    - docker
+    - kind
+    - kubectl
+    - helm
+  loop_control:
+    label: "{{ item }}"
+
+- name: Check the docker daemon is running
+  ansible.builtin.command: docker info
+  register: docker_info
+  changed_when: false
+  failed_when: docker_info.rc != 0
+
+- name: Toolchain OK
+  ansible.builtin.debug:
+    msg: "docker running; kind, kubectl, helm all present. Ready to build the brain."

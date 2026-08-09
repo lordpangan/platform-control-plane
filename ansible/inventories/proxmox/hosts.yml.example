@@ -1,0 +1,17 @@
+---
+# Proxmox VM inventory (EXAMPLE).
+# Copy this to `hosts.yml` and fill in your VM's address and SSH user.
+# `hosts.yml` is gitignored so your real host details never get committed.
+#
+#   cp hosts.yml.example hosts.yml   # then edit
+#
+# The VM should be Debian/Ubuntu. With bootstrap_host=true the playbook installs
+# docker/kind/kubectl/helm on the VM before building the cluster.
+all:
+  hosts:
+    platform-vm:
+      ansible_host: 192.168.1.50        # <-- your VM's IP or hostname
+      ansible_user: ubuntu              # <-- your SSH user on the VM
+      # ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+  vars:
+    bootstrap_host: true

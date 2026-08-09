@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.13.7/.schema/devbox.schema.json",
+  "packages": [
+    "kind@latest",
+    "kubernetes-helm@latest",
+    "kubectl@latest",
+    "ansible@latest",
+    "jq@latest"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo 'platform-engineer toolchain ready (shared by platform-control-plane + platform-gitops)'"
+    ]
+  }
+}

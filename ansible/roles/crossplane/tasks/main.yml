@@ -1,0 +1,23 @@
+---
+# Install Crossplane via Helm (idempotent: helm upgrade --install).
+- name: Add the Crossplane helm repo
+  ansible.builtin.command: "helm repo add {{ crossplane_chart_repo_name }} {{ crossplane_chart_repo_url }} --force-update"
+  register: repo_add
+  changed_when: "'has been added' in repo_add.stdout"
+
+- name: Update the Crossplane helm repo
+  ansible.builtin.command: "helm repo update {{ crossplane_chart_repo_name }}"
+  changed_when: false
+
+- name: Install/upgrade Crossplane
+  ansible.builtin.command: >-
+    helm upgrade --install crossplane
+    {{ crossplane_chart_repo_name }}/crossplane
+    --kube-context {{ kube_context }}
+    --namespace {{ crossplane_namespace }} --create-namespace
+    --version {{ crossplane_chart_version }}
+    --wait --timeout 300s
+  register: crossplane_install
+  changed_when: >-
+    'has been upgraded' in crossplane_install.stdout
+    or 'has been installed' in crossplane_install.stdout
