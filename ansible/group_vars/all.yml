@@ -29,6 +29,13 @@ crossplane_chart_repo_name: crossplane-stable
 crossplane_chart_repo_url: "https://charts.crossplane.io/stable"
 crossplane_chart_version: "2.3.4"
 
+# --- provider-terraform (Crossplane provider, applied via kubectl) ---
+# Lets Crossplane provision infra by running Terraform. v1.x adds the namespaced
+# (tf.m.upbound.io) API used by our Crossplane v2 Compositions.
+# Verified against the Upbound marketplace / GitHub tags on 2026-08-10.
+# https://marketplace.upbound.io/providers/upbound/provider-terraform
+provider_terraform_version: "v1.1.1"
+
 # --- Kyverno (helm) ---
 # chart 3.8.2 installs Kyverno app v1.18.2
 kyverno_namespace: kyverno

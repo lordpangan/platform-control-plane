@@ -1,0 +1,124 @@
+---
+# ---------------------------------------------------------------------------
+# provider-terraform: install the package, then wire AWS credentials.
+# Split in two so `make up` still stands up the brain even before the AWS
+# bootstrap exists — the provider installs; the creds step skips with a note.
+# ---------------------------------------------------------------------------
+
+# --- Install the Provider package ---------------------------------------------
+
+- name: Render the Provider manifest
+  ansible.builtin.template:
+    src: provider.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/provider-terraform.yaml"
+  changed_when: false
+
+- name: Apply the provider-terraform Provider
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} apply
+      -f {{ kind_config_remote | dirname }}/provider-terraform.yaml
+  register: provider_apply
+  changed_when: "'unchanged' not in provider_apply.stdout"
+
+- name: Wait for the Provider to be Installed
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait provider.pkg.crossplane.io/{{ provider_terraform_name }}
+      --for=condition=Installed --timeout=300s
+  changed_when: false
+
+- name: Wait for the Provider to be Healthy
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait provider.pkg.crossplane.io/{{ provider_terraform_name }}
+      --for=condition=Healthy --timeout=300s
+  changed_when: false
+
+- name: Wait for the ClusterProviderConfig CRD to be established
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait
+      crd/clusterproviderconfigs.tf.m.upbound.io
+      --for=condition=Established --timeout=120s
+  changed_when: false
+
+# --- Wire AWS credentials (only if the Step 1 bootstrap has been applied) ------
+
+- name: Read the scoped IAM key from the bootstrap Terraform outputs (controller)
+  ansible.builtin.command:
+    cmd: "terraform output -raw {{ item }}"
+    chdir: "{{ bootstrap_state_dir }}"
+  delegate_to: localhost
+  # The play-level PATH is the *target's* (the VM's) on a VM run; reset it to the
+  # controller's real PATH so terraform (on the Mac) is found for this local task.
+  environment:
+    PATH: "{{ lookup('env', 'PATH') }}"
+  register: tf_outputs
+  loop:
+    - crossplane_access_key_id
+    - crossplane_secret_access_key
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Decide whether AWS creds are available
+  ansible.builtin.set_fact:
+    aws_configured: "{{ (tf_outputs.results | selectattr('rc', 'equalto', 0) | list | length) == 2 }}"
+
+- name: Note when AWS creds are not wired (bootstrap not applied yet)
+  ansible.builtin.debug:
+    msg: >-
+      provider-terraform is installed, but AWS creds were NOT wired: could not read
+      the bootstrap outputs in {{ bootstrap_state_dir }}. Run `make bootstrap-aws`
+      first, then re-run this play to create the Secret + ClusterProviderConfig.
+  when: not aws_configured
+
+# kubectl apply of a Secret always reports "configured" (never "unchanged"), so we
+# can't detect real changes from its output. Instead: build the desired value,
+# read the current one, and only (re)apply when they actually differ — true idempotency.
+- name: Build the desired AWS credentials (INI)
+  ansible.builtin.set_fact:
+    aws_creds_ini: "[default]\naws_access_key_id={{ tf_outputs.results[0].stdout }}\naws_secret_access_key={{ tf_outputs.results[1].stdout }}\n"
+  no_log: true
+  when: aws_configured
+
+- name: Read the current AWS credentials Secret value (if present)
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} -n {{ provider_namespace }}
+      get secret {{ aws_creds_secret_name }} -o jsonpath={.data.credentials}
+  register: current_creds
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: aws_configured
+
+- name: Create/update the AWS credentials Secret (only when it differs)
+  ansible.builtin.shell:
+    cmd: >-
+      kubectl --context {{ kube_context }} -n {{ provider_namespace }}
+      create secret generic {{ aws_creds_secret_name }}
+      --from-literal=credentials="{{ aws_creds_ini }}"
+      --dry-run=client -o yaml
+      | kubectl --context {{ kube_context }} apply -f -
+  no_log: true
+  when:
+    - aws_configured
+    - (current_creds.stdout | default('')) != (aws_creds_ini | b64encode)
+
+- name: Render + apply the ClusterProviderConfig
+  ansible.builtin.template:
+    src: clusterproviderconfig.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/clusterproviderconfig-aws.yaml"
+  changed_when: false
+  when: aws_configured
+
+- name: Apply the ClusterProviderConfig
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} apply
+      -f {{ kind_config_remote | dirname }}/clusterproviderconfig-aws.yaml
+  register: cpc_apply
+  changed_when: "'unchanged' not in cpc_apply.stdout"
+  when: aws_configured

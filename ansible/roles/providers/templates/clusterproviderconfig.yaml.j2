@@ -1,0 +1,32 @@
+---
+# One cluster-scoped config every namespaced Workspace can reference (the
+# "building master key"). It points at the AWS creds Secret and injects the
+# Terraform provider setup into every workspace.
+#
+# Note: no backend block here on purpose — each infra layer's Workspace declares
+# its own S3 backend with a unique key (network/, eks/), so state stays split.
+apiVersion: tf.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: {{ cluster_provider_config_name }}
+spec:
+  credentials:
+    - filename: aws-creds.ini
+      source: Secret
+      secretRef:
+        namespace: {{ provider_namespace }}
+        name: {{ aws_creds_secret_name }}
+        key: credentials
+  configuration: |
+    terraform {
+      required_providers {
+        aws = {
+          source  = "hashicorp/aws"
+          version = "~> 6.0"
+        }
+      }
+    }
+    provider "aws" {
+      shared_credentials_files = ["${path.module}/aws-creds.ini"]
+      region                   = "{{ aws_region }}"
+    }

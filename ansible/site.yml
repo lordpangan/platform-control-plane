@@ -37,3 +37,9 @@
       tags: [kyverno, components]
     - role: argocd
       tags: [argocd, components]
+
+    # provider-terraform: lets Crossplane provision infra via Terraform.
+    # Installs after crossplane (needs its CRDs). The AWS-creds step skips
+    # cleanly until the Step 1 bootstrap (make bootstrap-aws) has been applied.
+    - role: providers
+      tags: [providers, terraform]

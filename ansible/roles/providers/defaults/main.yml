@@ -1,0 +1,19 @@
+---
+# provider-terraform install + AWS wiring.
+# Version is pinned in group_vars/all.yml; the rest are role-local knobs.
+
+provider_terraform_name: provider-terraform
+provider_terraform_package: "xpkg.upbound.io/upbound/provider-terraform:{{ provider_terraform_version }}"
+
+# Where the provider pod and the AWS creds Secret live (same ns as Crossplane).
+provider_namespace: "{{ crossplane_namespace }}"
+
+# AWS credential wiring.
+aws_creds_secret_name: aws-creds
+cluster_provider_config_name: aws-default
+aws_region: ap-southeast-1
+
+# The bootstrap Terraform (Step 1) whose outputs hold the scoped IAM key.
+# Read on the CONTROLLER (Mac) via delegate_to: localhost, so it works the same
+# whether the cluster is local or on the VM.
+bootstrap_state_dir: "{{ playbook_dir }}/../bootstrap/aws-state"
