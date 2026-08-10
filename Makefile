@@ -1,8 +1,10 @@
-CLUSTER     ?= platform-brain
-ANSIBLE_DIR := ansible
+CLUSTER               ?= platform-brain
+ANSIBLE_DIR           := ansible
+BOOTSTRAP_DIR         := bootstrap/aws-state
+AWS_PROFILE_BOOTSTRAP ?= platform-engineer-admin
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-vm down status argocd-password
+.PHONY: help up up-vm down down-vm status argocd-password bootstrap-aws teardown-aws-state
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -26,3 +28,11 @@ status:  ## Show pod health across all namespaces
 argocd-password:  ## Print the ArgoCD initial admin password
 	@kubectl --context kind-$(CLUSTER) -n argocd get secret argocd-initial-admin-secret \
 	  -o jsonpath='{.data.password}' | base64 -d; echo
+
+bootstrap-aws:  ## One-time: create the AWS state backend + scoped IAM user
+	@aws sts get-caller-identity --profile $(AWS_PROFILE_BOOTSTRAP) >/dev/null 2>&1 \
+	  || aws sso login --profile $(AWS_PROFILE_BOOTSTRAP)
+	cd $(BOOTSTRAP_DIR) && terraform init && terraform apply
+
+teardown-aws-state:  ## Rare: destroy the AWS state backend + IAM user (empty the bucket first)
+	cd $(BOOTSTRAP_DIR) && terraform destroy

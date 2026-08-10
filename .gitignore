@@ -15,6 +15,20 @@ ansible/inventories/proxmox/hosts.yml
 # devbox
 .devbox/
 
+# terraform — bootstrap uses LOCAL state (the root of trust); keep it out of git.
+# The dependency lock file (.terraform.lock.hcl) is intentionally NOT ignored.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # local / editor
 .DS_Store
 .vscode/
