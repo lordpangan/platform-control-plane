@@ -1,10 +1,10 @@
 ---
-# The provider-terraform package. Installing this Provider makes Crossplane run a
-# controller that reconciles Workspace resources by shelling out to Terraform.
+# The IaC engine package. Installing this Provider makes Crossplane run a
+# controller that reconciles Workspace resources by shelling out to OpenTofu.
 # No ControllerConfig/DeploymentRuntimeConfig — we don't need to tune the pod yet.
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: {{ provider_terraform_name }}
+  name: {{ engine_provider_name }}
 spec:
-  package: {{ provider_terraform_package }}
+  package: {{ engine_provider_package }}

@@ -1,11 +1,11 @@
 ---
 # One cluster-scoped config every namespaced Workspace can reference (the
 # "building master key"). It points at the AWS creds Secret and injects the
-# Terraform provider setup into every workspace.
+# OpenTofu provider setup into every workspace.
 #
 # Note: no backend block here on purpose — each infra layer's Workspace declares
 # its own S3 backend with a unique key (network/, eks/), so state stays split.
-apiVersion: tf.m.upbound.io/v1beta1
+apiVersion: {{ engine_api_group }}/v1beta1
 kind: ClusterProviderConfig
 metadata:
   name: {{ cluster_provider_config_name }}

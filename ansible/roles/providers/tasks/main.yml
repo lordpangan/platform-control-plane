@@ -1,6 +1,6 @@
 ---
 # ---------------------------------------------------------------------------
-# provider-terraform: install the package, then wire AWS credentials.
+# Install the IaC engine provider (provider-opentofu), then wire AWS credentials.
 # Split in two so `make up` still stands up the brain even before the AWS
 # bootstrap exists — the provider installs; the creds step skips with a note.
 # ---------------------------------------------------------------------------
@@ -10,28 +10,28 @@
 - name: Render the Provider manifest
   ansible.builtin.template:
     src: provider.yaml.j2
-    dest: "{{ kind_config_remote | dirname }}/provider-terraform.yaml"
+    dest: "{{ kind_config_remote | dirname }}/crossplane-engine-provider.yaml"
   changed_when: false
 
-- name: Apply the provider-terraform Provider
+- name: Apply the engine Provider
   ansible.builtin.command:
     cmd: >-
       kubectl --context {{ kube_context }} apply
-      -f {{ kind_config_remote | dirname }}/provider-terraform.yaml
+      -f {{ kind_config_remote | dirname }}/crossplane-engine-provider.yaml
   register: provider_apply
   changed_when: "'unchanged' not in provider_apply.stdout"
 
 - name: Wait for the Provider to be Installed
   ansible.builtin.command:
     cmd: >-
-      kubectl --context {{ kube_context }} wait provider.pkg.crossplane.io/{{ provider_terraform_name }}
+      kubectl --context {{ kube_context }} wait provider.pkg.crossplane.io/{{ engine_provider_name }}
       --for=condition=Installed --timeout=300s
   changed_when: false
 
 - name: Wait for the Provider to be Healthy
   ansible.builtin.command:
     cmd: >-
-      kubectl --context {{ kube_context }} wait provider.pkg.crossplane.io/{{ provider_terraform_name }}
+      kubectl --context {{ kube_context }} wait provider.pkg.crossplane.io/{{ engine_provider_name }}
       --for=condition=Healthy --timeout=300s
   changed_when: false
 
@@ -39,7 +39,7 @@
   ansible.builtin.command:
     cmd: >-
       kubectl --context {{ kube_context }} wait
-      crd/clusterproviderconfigs.tf.m.upbound.io
+      crd/clusterproviderconfigs.{{ engine_api_group }}
       --for=condition=Established --timeout=120s
   changed_when: false
 
@@ -69,8 +69,8 @@
 - name: Note when AWS creds are not wired (bootstrap not applied yet)
   ansible.builtin.debug:
     msg: >-
-      provider-terraform is installed, but AWS creds were NOT wired: could not read
-      the bootstrap outputs in {{ bootstrap_state_dir }}. Run `make bootstrap-aws`
+      {{ engine_provider_name }} is installed, but AWS creds were NOT wired: could not
+      read the bootstrap outputs in {{ bootstrap_state_dir }}. Run `make bootstrap-aws`
       first, then re-run this play to create the Secret + ClusterProviderConfig.
   when: not aws_configured
 

@@ -1,9 +1,15 @@
 ---
-# provider-terraform install + AWS wiring.
-# Version is pinned in group_vars/all.yml; the rest are role-local knobs.
+# The Crossplane "engine" provider that runs IaC. We use provider-opentofu
+# (OpenTofu, Apache-2.0) rather than provider-terraform, which is frozen at
+# Terraform 1.5.x because upstream Terraform moved to the BSL at 1.6.
+# Engine-agnostic var names so swapping the engine later is a one-file change.
+# Version is pinned in group_vars/all.yml.
 
-provider_terraform_name: provider-terraform
-provider_terraform_package: "xpkg.upbound.io/upbound/provider-terraform:{{ provider_terraform_version }}"
+engine_provider_name: provider-opentofu
+engine_provider_package: "xpkg.upbound.io/upbound/provider-opentofu:{{ provider_opentofu_version }}"
+
+# API group the provider serves (namespaced variant, for Crossplane v2).
+engine_api_group: opentofu.m.upbound.io
 
 # Where the provider pod and the AWS creds Secret live (same ns as Crossplane).
 provider_namespace: "{{ crossplane_namespace }}"
