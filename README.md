@@ -73,6 +73,31 @@ make up-vm
 
 `hosts.yml` is gitignored so your real host details never get committed.
 
+### Reaching the ArgoCD UI
+
+The cluster runs **inside the VM**, so getting to the UI takes two hops: an SSH
+tunnel from your machine to the VM, then a `port-forward` from the VM into the
+cluster. The `-vm` targets do both for you:
+
+```bash
+make argocd-ui-vm         # tunnel + port-forward -> https://localhost:8080
+make argocd-password-vm   # the admin password (user: admin)
+make argocd-apps-vm       # watch Applications sync, in wave order
+make status-vm            # pod health on the VM cluster
+```
+
+Open **<https://localhost:8080>** and accept the self-signed certificate.
+`Ctrl-C` closes the tunnel.
+
+The same targets without `-vm` (`make argocd-ui`, `make argocd-password`,
+`make status`) work against a **local** `make up` cluster — no tunnel needed.
+
+> **How the `-vm` targets find your VM:** they read `ansible_host`,
+> `ansible_user` and `tools_path` out of the gitignored proxmox inventory, so
+> host details live in exactly one place. `tools_path` matters because a
+> non-interactive SSH session skips your shell profile — without it the VM's
+> devbox toolchain isn't on `PATH` and `kubectl` appears to be missing.
+
 ## How it's built
 
 - **Ansible is the single source of truth** — roles in `ansible/roles/` install
