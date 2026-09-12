@@ -79,6 +79,11 @@ make up-vm
   each piece; `ansible/group_vars/all.yml` pins every version.
 - **`make` is just a thin wrapper** around `ansible-playbook`.
 - **kind config** is in `kind/config.yaml`.
+- **The `argocd` role also seeds GitOps** — it applies one root `Application`
+  pointing ArgoCD at `platform-gitops`. That seed can't live in the repo it
+  watches; everything downstream (the child Applications, ordered by sync wave)
+  is committed there and reconciled by ArgoCD itself. See
+  [ADR 0007](./docs/adr/0007-gitops-bootstrap-seed.md).
 - See [ADR 0003](./docs/adr/0003-kind-ansible-helm.md) for why kind + Ansible + Helm.
 
 ## Documentation

@@ -12,6 +12,7 @@ decision changes, add a new ADR that supersedes the old one.
 | [0004](./0004-opentofu-engine-in-crossplane.md) | OpenTofu as the IaC engine, run inside Crossplane (over native providers / Terraform) | Accepted |
 | [0005](./0005-remote-state-s3-dynamodb-bootstrap.md) | Remote OpenTofu state in S3 + DynamoDB, via a one-time bootstrap | Accepted |
 | [0006](./0006-scoped-iam-user-for-platform-identity.md) | A scoped IAM user for the platform (Crossplane) identity | Accepted |
+| [0007](./0007-gitops-bootstrap-seed.md) | The GitOps bootstrap seam: a seed here, content in the GitOps repo | Accepted |
 
 > These two are system-wide decisions, so they live in the control-plane repo.
 > Repo-specific decisions live in that repo's own `docs/adr/`.

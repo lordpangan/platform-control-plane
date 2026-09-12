@@ -22,9 +22,38 @@
     'has been upgraded' in argocd_install.stdout
     or 'has been installed' in argocd_install.stdout
 
+# --- Seed GitOps ---------------------------------------------------------------
+# The one Application applied imperatively: nothing reads the gitops repo until
+# something points ArgoCD at it. From here on ArgoCD manages its own config —
+# the child Applications live in the gitops repo. See argocd/README.md.
+
+- name: Wait for the Application CRD to be established
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait
+      crd/applications.argoproj.io
+      --for=condition=Established --timeout=120s
+  changed_when: false
+
+- name: Render the GitOps root Application (the seed)
+  ansible.builtin.template:
+    src: root-app.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/argocd-root-app.yaml"
+  changed_when: false
+
+- name: Apply the GitOps root Application
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} apply
+      -f {{ kind_config_remote | dirname }}/argocd-root-app.yaml
+  register: root_app_apply
+  changed_when: "'unchanged' not in root_app_apply.stdout"
+
 - name: How to reach ArgoCD
   ansible.builtin.debug:
     msg:
       - "ArgoCD installed in namespace '{{ argocd_namespace }}'."
       - "Admin password:  kubectl -n {{ argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
       - "Port-forward UI:  kubectl -n {{ argocd_namespace }} port-forward svc/argocd-server 8080:443"
+      - "GitOps seed '{{ argocd_root_app_name }}' points at {{ argocd_gitops_repo_url }} ({{ argocd_gitops_bootstrap_path }}/)."
+      - "Watch it sync:   kubectl -n {{ argocd_namespace }} get applications -w"

@@ -1,0 +1,19 @@
+# The GitOps seed — applied imperatively because nothing reads the gitops repo
+# until something points ArgoCD at it. Everything downstream (the child
+# Applications, ordered by sync wave) lives in {{ argocd_gitops_bootstrap_path }}/
+# in the gitops repo. Kept in sync with argocd/root-app.yml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ argocd_root_app_name }}
+  namespace: {{ argocd_namespace }}
+spec:
+  project: default
+  source:
+    repoURL: {{ argocd_gitops_repo_url }}
+    path: {{ argocd_gitops_bootstrap_path }}
+    targetRevision: {{ argocd_gitops_revision }}
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }

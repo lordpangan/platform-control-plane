@@ -51,6 +51,12 @@ argocd_namespace: argocd
 argocd_chart_repo_name: argo
 argocd_chart_repo_url: "https://argoproj.github.io/argo-helm"
 argocd_chart_version: "10.3.0"
+# The GitOps seed: the one Application applied imperatively, pointing ArgoCD at
+# the gitops repo. Everything downstream lives in that repo (see argocd/README.md).
+argocd_gitops_repo_url: "https://github.com/lordpangan/platform-gitops"
+argocd_gitops_revision: "main"
+argocd_gitops_bootstrap_path: "bootstrap"
+argocd_root_app_name: "platform-root-app"
 
 # --- VM bootstrap (only used by the proxmox inventory) ---
 # When true, install docker/kind/kubectl/helm on a Debian/Ubuntu VM first.
