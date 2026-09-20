@@ -1,0 +1,48 @@
+---
+# ---------------------------------------------------------------------------
+# Install the Crossplane composition functions the definitions in
+# platform-gitops call: go-templating (renders the Composition) and
+# auto-ready (marks the XR ready). Both ship in one multi-document manifest.
+# ---------------------------------------------------------------------------
+
+- name: Render the Function manifest
+  ansible.builtin.template:
+    src: function.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/crossplane-function.yaml"
+  changed_when: false
+
+- name: Apply the Function
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} apply
+      -f {{ kind_config_remote | dirname }}/crossplane-function.yaml
+  register: function_apply
+  changed_when: function_apply.stdout is search('created|configured')
+
+- name: Wait for the Go Template Function to be Installed
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait function.pkg.crossplane.io/{{ go_template_function_name }}
+      --for=condition=Installed --timeout=300s
+  changed_when: false
+
+- name: Wait for the Go Template Function to be Healthy
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait function.pkg.crossplane.io/{{ go_template_function_name }}
+      --for=condition=Healthy --timeout=300s
+  changed_when: false
+
+- name: Wait for the Auto Ready Function to be Installed
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait function.pkg.crossplane.io/{{ auto_ready_function_name }}
+      --for=condition=Installed --timeout=300s
+  changed_when: false
+
+- name: Wait for the Auto Ready Function to be Healthy
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} wait function.pkg.crossplane.io/{{ auto_ready_function_name }}
+      --for=condition=Healthy --timeout=300s
+  changed_when: false

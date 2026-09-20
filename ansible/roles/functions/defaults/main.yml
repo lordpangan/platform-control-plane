@@ -1,0 +1,12 @@
+---
+# The names are lookup keys. A Composition's functionRef.name must match one of
+# them exactly, and Crossplane reports nothing when it does not — so a typo here
+# is silent. Versions live in group_vars/all.yml.
+
+# Renders the Composition's Go template into the composed resources.
+go_template_function_name: function-go-templating
+go_template_function_package: "xpkg.crossplane.io/crossplane-contrib/function-go-templating:{{ function_go_template_version }}"
+
+# Marks the XR ready once its composed resources report ready.
+auto_ready_function_name: function-auto-ready
+auto_ready_function_package: "xpkg.crossplane.io/crossplane-contrib/function-auto-ready:{{ function_auto_ready_version }}"

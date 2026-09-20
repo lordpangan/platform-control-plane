@@ -1,0 +1,22 @@
+---
+# function-go-templating. Crossplane hands it the XR and the template from a
+# Composition; it renders them into the composed resources (here: a Workspace).
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: {{ go_template_function_name }}
+spec:
+  package: {{ go_template_function_package }}
+
+---
+
+# function-auto-ready. In a function pipeline Crossplane does not infer XR
+# readiness on its own. This function reads the composed resources and marks
+# the XR Ready once they all report Ready. Without it an XNetwork stays
+# READY=False forever even though its Workspace is READY=True.
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: {{ auto_ready_function_name }}
+spec:
+  package: {{ auto_ready_function_package }}

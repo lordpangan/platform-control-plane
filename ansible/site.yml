@@ -38,8 +38,14 @@
     - role: argocd
       tags: [argocd, components]
 
-    # provider-terraform: lets Crossplane provision infra via Terraform.
+    # provider-opentofu: lets Crossplane provision infra via Opentofu.
     # Installs after crossplane (needs its CRDs). The AWS-creds step skips
     # cleanly until the Step 1 bootstrap (make bootstrap-aws) has been applied.
     - role: providers
-      tags: [providers, terraform]
+      tags: [providers, opentofu]
+
+    # Composition functions: go-templating renders a Composition into composed
+    # resources, auto-ready marks the XR ready once they are. A Composition in
+    # platform-gitops that references a function missing here fails silently.
+    - role: functions
+      tags: [functions]

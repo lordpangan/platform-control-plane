@@ -38,6 +38,17 @@ crossplane_chart_version: "2.3.4"
 # https://github.com/upbound/provider-opentofu/releases
 provider_opentofu_version: "v1.1.5"
 
+# --- Crossplane composition functions (applied via kubectl) ---
+# go-templating renders a Composition's Go template into composed resources.
+# auto-ready marks the XR ready once those resources report ready.
+# Mirrored in platform-gitops/test/functions.yaml for the offline render tests;
+# change a version here and change it there too, or the tests stop predicting
+# the cluster.
+# https://github.com/crossplane-contrib/function-go-templating/releases
+function_go_template_version: "v0.12.3"
+# https://github.com/crossplane-contrib/function-auto-ready/releases
+function_auto_ready_version: "v0.7.0"
+
 # --- Kyverno (helm) ---
 # chart 3.8.2 installs Kyverno app v1.18.2
 kyverno_namespace: kyverno
