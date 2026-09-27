@@ -153,4 +153,14 @@ data "aws_iam_policy_document" "crossplane" {
     ]
     resources = ["*"]
   }
+
+  # --- SSM: the EKS managed node group looks up the optimized AMI version from
+  #     AWS's public SSM parameters (/aws/service/eks/...). Public, so scope to
+  #     that path rather than "*". ---
+  statement {
+    sid       = "EksOptimizedAmiLookup"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter", "ssm:GetParameters"]
+    resources = ["arn:aws:ssm:*::parameter/aws/service/eks/*"]
+  }
 }
