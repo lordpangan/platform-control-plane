@@ -9,6 +9,12 @@
   ansible.builtin.command: "helm repo update {{ argocd_chart_repo_name }}"
   changed_when: false
 
+- name: Render the ArgoCD Helm values
+  ansible.builtin.template:
+    src: argocd-values.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/argocd-values.yaml"
+  changed_when: false
+
 - name: Install/upgrade ArgoCD
   ansible.builtin.command: >-
     helm upgrade --install argocd
@@ -16,6 +22,7 @@
     --kube-context {{ kube_context }}
     --namespace {{ argocd_namespace }} --create-namespace
     --version {{ argocd_chart_version }}
+    --values {{ kind_config_remote | dirname }}/argocd-values.yaml
     --wait --timeout 600s
   register: argocd_install
   changed_when: >-

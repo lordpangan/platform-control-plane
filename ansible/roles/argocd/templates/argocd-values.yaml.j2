@@ -1,0 +1,30 @@
+configs:
+  cm:
+    resource.customizations.health.platform.meridian.io_XNetwork: |
+      local hs = {}
+      if obj.status ~= nil and obj.status.conditions ~= nil then
+        for _, c in ipairs(obj.status.conditions) do
+          if c.type == "Ready" and c.status == "True" then
+            hs.status = "Healthy"
+            hs.message = "Xnetwork is Ready"
+            return hs
+          end
+        end
+      end
+      hs.status = "Progressing"
+      hs.message = "Xnetwork is waiting for Ready condition"
+      return hs
+    resource.customizations.health.platform.meridian.io_XEKSCluster: |
+      local hs = {}
+      if obj.status ~= nil and obj.status.conditions ~= nil then
+        for _, c in ipairs(obj.status.conditions) do
+          if c.type == "Ready" and c.status == "True" then
+            hs.status = "Healthy"
+            hs.message = "XEKSCluster is Ready"
+            return hs
+          end
+        end
+      end
+      hs.status = "Progressing"
+      hs.message = "XEKSCluster is waiting for Ready condition"
+      return hs
