@@ -75,3 +75,6 @@ argocd_root_app_name: "platform-root-app"
 bootstrap_host: false
 kubectl_download_version: "v1.36.1"   # matches the kind node image (k8s v1.36.1)
 kind_download_version: "v0.32.0"
+
+# --- Backstage ---
+backstage_github_token: "{{ vault_github_token }}"

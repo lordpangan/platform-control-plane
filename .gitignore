@@ -6,6 +6,7 @@
 kubeconfig
 *-kubeconfig
 .secrets/
+*vault-pass*
 
 # ansible
 *.retry
