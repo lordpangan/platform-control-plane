@@ -47,6 +47,8 @@
       stringData:
         GITHUB_TOKEN: {{ backstage_github_token | to_json }}
         ARGOCD_PASSWORD: {{ backstage_argocd_password | to_json }}
+        AUTH_GITHUB_CLIENT_ID: {{ backstage_github_oauth_client_id | to_json }}
+        AUTH_GITHUB_CLIENT_SECRET: {{ backstage_github_oauth_client_secret | to_json }}
   register: bs_secret
   changed_when: "'unchanged' not in bs_secret.stdout"
   no_log: true

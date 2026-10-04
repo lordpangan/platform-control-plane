@@ -88,3 +88,5 @@ backstage_github_token: "{{ vault_github_token }}"
 backstage_gitops_owner: lordpangan
 backstage_gitops_repo: platform-gitops
 backstage_argocd_password: "{{ vault_argocd_password }}"
+backstage_github_oauth_client_id: "{{ vault_github_oauth_client_id }}"
+backstage_github_oauth_client_secret: "{{ vault_github_oauth_client_secret }}"

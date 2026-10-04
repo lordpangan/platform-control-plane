@@ -1,5 +1,5 @@
 # Rendered by the backstage role. Only double-brace expressions are Ansible; ${VAR}
-# Backstage at runtime from env vars, so secrets never land in this file or in
+# is resolved by Backstage at runtime from env vars, so secrets never land in this file or in
 # the ConfigMap the chart builds from appConfig.
 backstage:
   image:
@@ -89,6 +89,10 @@ backstage:
         guest:
           # Required: the guest provider refuses to start in a production build.
           dangerouslyAllowOutsideDevelopment: true
+        github:
+          development:          # key = auth environment; the frontend requests env=development.
+            clientId: ${AUTH_GITHUB_CLIENT_ID}
+            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
     catalog:
       rules:
         - allow: [Component, System, API, Resource, Location, Template, User, Group]
@@ -113,7 +117,7 @@ backstage:
         titleModel: 'name'
         systemModel: 'cluster'
         referencesNamespaceModel: 'default'
-      # Infra API only: don't ingest workloads as Components.
+      # Ingest Crossplane XRs only; default workload types are off below.
       components:
         enabled: true                       # gates ALL ingestion, XRs included
         disableDefaultWorkloadTypes: true   # skip Deployments/StatefulSets/etc.
@@ -123,7 +127,7 @@ backstage:
           - kube-public
           - kube-system
         taskRunner:
-          frequency: 10
+          frequency: 600
           timeout: 600
       crossplane:
         claims:
@@ -140,7 +144,7 @@ backstage:
               repoUrl: github.com?owner={{ backstage_gitops_owner }}&repo={{ backstage_gitops_repo }}
               targetBranch: main
           taskRunner:
-            frequency: 10
+            frequency: 600
             timeout: 600
     crossplane:
       enablePermissions: false
