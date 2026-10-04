@@ -62,6 +62,14 @@ form submit ──▶ Backstage opens a PR ──▶ you review + merge ──�
   folder named after the cluster at the repo root. ArgoCD only watches
   `infra-requests/`, so it would never apply it. `custom` writes
   `infra-requests/<name>.yaml`.
+- **After a `custom` create, fix two things in the PR before merging:**
+  the `source-file-url` annotation points at a scratch `temp/...` path
+  (plugin bug — change it to the real `infra-requests/<name>.yaml` URL, or
+  the edit flow can't find the file), and there is no
+  `argocd.argoproj.io/sync-wave` (add it: XNetwork `"1"`, XEKSCluster `"2"`).
+- **The form doesn't enforce required XRD fields.** A missing `mode`
+  submits fine and only fails at ArgoCD sync (`spec.mode: Required value`).
+  Check the spec in the PR.
 - **Edit flow needs the `terasky.backstage.io/source-file-url` annotation** on
   the claim, pointing at its file in Git. Without it, step 2 of the edit form
   is blank. Claims made by the create form get it automatically; hand-written
