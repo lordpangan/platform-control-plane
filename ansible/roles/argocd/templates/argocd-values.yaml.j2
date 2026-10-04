@@ -1,4 +1,6 @@
 configs:
+  params:
+    server.insecure: true     # argocd-server serves HTTP in-cluster; Backstage (and port-forward) reach it without TLS
   cm:
     resource.customizations.health.platform.meridian.io_XNetwork: |
       local hs = {}

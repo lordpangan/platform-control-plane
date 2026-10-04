@@ -1,0 +1,74 @@
+---
+# Install Backstage via Helm (idempotent: helm upgrade --install).
+- name: Add the Backstage helm repo
+  ansible.builtin.command: "helm repo add {{ backstage_chart_repo_name }} {{ backstage_chart_repo_url }} --force-update"
+  register: repo_add
+  changed_when: "'has been added' in repo_add.stdout"
+
+- name: Update the Backstage helm repo
+  ansible.builtin.command: "helm repo update {{ backstage_chart_repo_name }}"
+  changed_when: false
+
+- name: Create the Backstage namespace
+  ansible.builtin.command:
+    cmd: kubectl --context {{ kube_context }} apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: {{ backstage_namespace }}
+  register: bs_ns
+  changed_when: "'created' in bs_ns.stdout"
+
+- name: Render the Backstage RBAC manifests
+  ansible.builtin.template:
+    src: backstage-rbac.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/backstage-rbac.yaml"
+  changed_when: false
+
+- name: Apply the Backstage RBAC manifests
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --context {{ kube_context }} apply
+      -f {{ kind_config_remote | dirname }}/backstage-rbac.yaml
+  register: bs_rbac
+  changed_when: bs_rbac.stdout is search('created|configured')
+
+- name: Create the Backstage GitHub token Secret
+  ansible.builtin.command:
+    cmd: kubectl --context {{ kube_context }} apply -f -
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: backstage-secrets
+        namespace: {{ backstage_namespace }}
+      type: Opaque
+      stringData:
+        GITHUB_TOKEN: {{ backstage_github_token | to_json }}
+        ARGOCD_PASSWORD: {{ backstage_argocd_password | to_json }}
+  register: bs_secret
+  changed_when: "'unchanged' not in bs_secret.stdout"
+  no_log: true
+
+- name: Render the Backstage values manifests
+  ansible.builtin.template:
+    src: backstage-values.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/backstage-values.yaml"
+  changed_when: false
+
+
+- name: Install/upgrade Backstage
+  ansible.builtin.command: >-
+    helm upgrade --install backstage
+    {{ backstage_chart_repo_name }}/backstage
+    --kube-context {{ kube_context }}
+    --namespace {{ backstage_namespace }} --create-namespace
+    --version {{ backstage_chart_version }}
+    --values {{ kind_config_remote | dirname }}/backstage-values.yaml
+    --wait --timeout 600s
+  register: backstage_install
+  changed_when: >-
+    'has been upgraded' in backstage_install.stdout
+    or 'has been installed' in backstage_install.stdout
+

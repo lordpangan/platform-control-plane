@@ -77,4 +77,14 @@ kubectl_download_version: "v1.36.1"   # matches the kind node image (k8s v1.36.1
 kind_download_version: "v0.32.0"
 
 # --- Backstage ---
+backstage_namespace: backstage
+backstage_chart_repo_name: backstage
+backstage_chart_repo_url: "https://backstage.github.io/charts"
+backstage_chart_version: "2.10.2"
+backstage_image_registry: ghcr.io
+backstage_image_repository: vrabbi/backstack-demo
+backstage_image_tag: "0.0.3"
 backstage_github_token: "{{ vault_github_token }}"
+backstage_gitops_owner: lordpangan
+backstage_gitops_repo: platform-gitops
+backstage_argocd_password: "{{ vault_argocd_password }}"

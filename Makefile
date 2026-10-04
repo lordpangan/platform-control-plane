@@ -17,7 +17,7 @@ VM_SSH    = $(call vm_fact,ansible_user)@$(call vm_fact,ansible_host)
 VM_ENV    = export PATH="$(call vm_fact,tools_path):$$PATH";
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-vm down down-vm status status-vm argocd-password argocd-password-vm argocd-ui argocd-ui-vm argocd-apps-vm bootstrap-aws teardown-aws-state
+.PHONY: help up up-vm down down-vm status status-vm argocd-password argocd-password-vm argocd-ui argocd-ui-vm argocd-apps-vm backstage-ui backstage-ui-vm bootstrap-aws teardown-aws-state
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -49,18 +49,29 @@ argocd-password-vm:  ## Print the ArgoCD admin password (Proxmox VM cluster)
 	@ssh $(VM_SSH) '$(VM_ENV) kubectl -n argocd get secret argocd-initial-admin-secret \
 	  -o jsonpath="{.data.password}" | base64 -d'; echo
 
-argocd-ui:  ## Port-forward the ArgoCD UI to https://localhost:8080 (local cluster)
-	@echo "ArgoCD UI -> https://localhost:8080   (user: admin, password: make argocd-password)"
-	@kubectl --context kind-$(CLUSTER) -n argocd port-forward svc/argocd-server 8080:443
+# argocd-server runs with server.insecure (see the argocd role), so the UI is plain HTTP.
+argocd-ui:  ## Port-forward the ArgoCD UI to http://localhost:8080 (local cluster)
+	@echo "ArgoCD UI -> http://localhost:8080   (user: admin, password: make argocd-password)"
+	@kubectl --context kind-$(CLUSTER) -n argocd port-forward svc/argocd-server 8080:80
 
-argocd-ui-vm:  ## Tunnel + port-forward the VM's ArgoCD UI to https://localhost:8080
-	@echo "ArgoCD UI -> https://localhost:8080   (user: admin, password: make argocd-password-vm)"
+argocd-ui-vm:  ## Tunnel + port-forward the VM's ArgoCD UI to http://localhost:8080
+	@echo "ArgoCD UI -> http://localhost:8080   (user: admin, password: make argocd-password-vm)"
 	@echo "Ctrl-C to close the tunnel."
 	@ssh -L 8080:localhost:8080 $(VM_SSH) \
-	  '$(VM_ENV) kubectl -n argocd port-forward svc/argocd-server 8080:443'
+	  '$(VM_ENV) kubectl -n argocd port-forward svc/argocd-server 8080:80'
 
 argocd-apps-vm:  ## Watch ArgoCD Applications sync on the VM (wave order)
 	@ssh $(VM_SSH) '$(VM_ENV) kubectl -n argocd get applications -w'
+
+backstage-ui:  ## Port-forward the Backstage UI to http://localhost:7007 (local cluster)
+	@echo "Backstage -> http://localhost:7007   (sign in as guest)"
+	@kubectl --context kind-$(CLUSTER) -n backstage port-forward svc/backstage 7007:7007
+
+backstage-ui-vm:  ## Tunnel + port-forward the VM's Backstage UI to http://localhost:7007
+	@echo "Backstage -> http://localhost:7007   (sign in as guest)"
+	@echo "Ctrl-C to close the tunnel."
+	@ssh -L 7007:localhost:7007 $(VM_SSH) \
+	  '$(VM_ENV) kubectl -n backstage port-forward svc/backstage 7007:7007'
 
 bootstrap-aws:  ## One-time: create the AWS state backend + scoped IAM user
 	@aws sts get-caller-identity --profile $(AWS_PROFILE_BOOTSTRAP) >/dev/null 2>&1 \

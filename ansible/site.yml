@@ -49,3 +49,9 @@
     # platform-gitops that references a function missing here fails silently.
     - role: functions
       tags: [functions]
+
+    # Backstage: the developer front door. Runs last: it reads the XRDs Crossplane
+    # serves (request forms + claim catalog) and talks to argocd-server. The GitHub
+    # token lets it open PRs on platform-gitops.
+    - role: backstage
+      tags: [backstage, components]

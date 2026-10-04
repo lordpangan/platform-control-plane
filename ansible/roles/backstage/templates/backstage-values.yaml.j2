@@ -1,0 +1,212 @@
+# Rendered by the backstage role. Only double-brace expressions are Ansible; ${VAR}
+# Backstage at runtime from env vars, so secrets never land in this file or in
+# the ConfigMap the chart builds from appConfig.
+backstage:
+  image:
+    registry: {{ backstage_image_registry }}
+    repository: {{ backstage_image_repository }}
+    tag: "{{ backstage_image_tag }}"
+
+  # Keep the pod inside the VM's budget; Node grows to fill whatever it's given.
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1536Mi
+
+  extraEnvVars:
+    - name: NODE_OPTIONS
+      value: --no-node-snapshot --max-old-space-size=1024
+    # SA token read straight from its Secret; Ansible never sees it.
+    - name: K8S_SA_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: backstage-sa-token
+          key: token
+
+  # GITHUB_TOKEN, ARGOCD_PASSWORD, created by the role from the vault.
+  extraEnvVarsSecrets:
+    - backstage-secrets
+
+  # Users/groups for the catalog (from extraDeploy below).
+  extraVolumeMounts:
+    - name: backstage-config
+      mountPath: /app/backstage-config
+  extraVolumes:
+    - name: backstage-config
+      configMap:
+        name: backstage-config
+
+  appConfig:
+    app:
+      title: Platform Portal
+      # Frontend and backend are served from the same port in the image.
+      baseUrl: http://localhost:7007
+      packages: all
+      extensions:
+        - nav-item:search: false
+        - nav-item:user-settings: false
+        - nav-item:catalog: false
+        - nav-item:scaffolder: false
+        - entity-card:catalog/has-subcomponents: false
+        - entity-card:catalog/depends-on-components: false
+        - entity-card:catalog/depends-on-resources: false
+        - page:catalog:
+            config:
+              path: /
+    organization:
+      name: Meridian Platform
+    backend:
+      baseUrl: http://localhost:7007
+      listen:
+        port: 7007
+      csp:
+        connect-src: ["'self'", 'http:', 'https:']
+      cors:
+        origin: http://localhost:7007
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+      # In-memory: the catalog rebuilds from the cluster on restart.
+      database:
+        client: better-sqlite3
+        connection: ':memory:'
+      reading:
+        allow:
+          - host: raw.githubusercontent.com
+    integrations:
+      github:
+        - host: github.com
+          token: ${GITHUB_TOKEN}
+    techdocs:
+      builder: local
+      generator:
+        runIn: local          # backstack used docker; there is no docker in the pod
+      publisher:
+        type: local
+    auth:
+      providers:
+        guest:
+          # Required: the guest provider refuses to start in a production build.
+          dangerouslyAllowOutsideDevelopment: true
+    catalog:
+      rules:
+        - allow: [Component, System, API, Resource, Location, Template, User, Group]
+      locations:
+        - type: file
+          target: /app/backstage-config/config.yaml
+          rules:
+            - allow: [User, Group, System]
+        # Day-2 edit flow: the "Update Kubernetes Manifest" template behind the
+        # entity page's edit tab. Upstream (vrabbi-backstage), loaded at runtime.
+        - type: url
+          target: https://github.com/vrabbi-backstage/gitops-updater-template/blob/main/catalog-info.yaml
+          rules:
+            - allow: [Template]
+    permission:
+      enabled: false
+    kubernetesIngestor:
+      argoIntegration: true
+      mappings:
+        namespaceModel: 'default'
+        nameModel: 'name'
+        titleModel: 'name'
+        systemModel: 'cluster'
+        referencesNamespaceModel: 'default'
+      # Infra API only: don't ingest workloads as Components.
+      components:
+        enabled: true                       # gates ALL ingestion, XRs included
+        disableDefaultWorkloadTypes: true   # skip Deployments/StatefulSets/etc.
+        customWorkloadTypes: []
+        onlyIngestAnnotatedResources: false
+        excludedNamespaces:
+          - kube-public
+          - kube-system
+        taskRunner:
+          frequency: 10
+          timeout: 600
+      crossplane:
+        claims:
+          ingestAllClaims: true
+        xrds:
+          enabled: true
+          ingestAllXRDs: true
+          convertDefaultValuesToPlaceholders: true
+          publishPhase:
+            allowRepoSelection: false
+            allowedTargets: ['github.com']
+            target: github
+            git:
+              repoUrl: github.com?owner={{ backstage_gitops_owner }}&repo={{ backstage_gitops_repo }}
+              targetBranch: main
+          taskRunner:
+            frequency: 10
+            timeout: 600
+    crossplane:
+      enablePermissions: false
+    kyverno:
+      enablePermissions: false
+    kubernetes:
+      frontend:
+        podDelete:
+          enabled: false
+      serviceLocatorMethod:
+        type: singleTenant
+      clusterLocatorMethods:
+        - type: config
+          clusters:
+            - name: {{ kind_cluster_name }}
+              authProvider: serviceAccount
+              url: https://kubernetes.default.svc
+              serviceAccountToken: ${K8S_SA_TOKEN}
+              # Cluster CA, mounted into every pod; replaces backstack's skipTLSVerify.
+              caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    argocd:
+      appLocatorMethods:
+        - type: config
+          instances:
+            - name: in-cluster
+              url: http://argocd-server.argocd.svc    # HTTP, in-cluster only
+              username: admin
+              password: ${ARGOCD_PASSWORD}            # literal; from a Secret
+
+extraDeploy:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: backstage-config
+    data:
+      config.yaml: |
+        ---
+        apiVersion: backstage.io/v1alpha1
+        kind: User
+        metadata:
+          name: guest
+        spec:
+          memberOf: [guests]
+        ---
+        apiVersion: backstage.io/v1alpha1
+        kind: Group
+        metadata:
+          name: guests
+        spec:
+          type: team
+          children: [kubernetes-auto-ingested]
+        ---
+        # Default owner the kubernetesIngestor stamps on every ingested entity.
+        # Must exist, or each XR/MR page warns about a missing relation.
+        apiVersion: backstage.io/v1alpha1
+        kind: Group
+        metadata:
+          name: kubernetes-auto-ingested
+        spec:
+          type: team
+          children: []
+        ---
+        # systemModel 'cluster' files ingested entities under a System named after the cluster.
+        apiVersion: backstage.io/v1alpha1
+        kind: System
+        metadata:
+          name: {{ kind_cluster_name }}
+        spec:
+          owner: guests
