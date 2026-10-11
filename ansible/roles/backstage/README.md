@@ -34,22 +34,27 @@ restart rebuilds it from the cluster. An initContainer (`wait-for-dns`) holds
 the pod until cluster DNS answers, so the first run after a VM reboot doesn't
 find an empty cluster.
 
-**Our templates** — in platform-gitops, next to each API:
-`definitions/<api>/backstage-template.yaml`. One catalog location with a glob
-loads them all; ArgoCD skips them (`exclude` in `bootstrap/definitions.yaml`).
-Each file has two documents:
+**Our templates** — all in platform-gitops, all named `backstage-template.yaml`.
+One catalog location with a glob (`definitions/*/backstage-template.yaml`)
+loads them; ArgoCD skips them (`exclude` in `bootstrap/definitions.yaml`).
 
-1. `kind: Template` — the create form. Writes `infra-requests/<name>.yaml`
-   with the sync-wave and the real `source-file-url`, then opens a PR.
-2. `kind: API` — the schema the edit form draws its fields from. The edit form
-   looks it up by name (`<kind>-<group>--<version>`). The generator used to
-   make it; with generation off, we write it. **It copies the XRD's spec —
-   change both together.**
+- `definitions/<api>/backstage-template.yaml` — one per API, two documents:
+  1. `kind: Template` — the **create** form. Writes `infra-requests/<name>.yaml`
+     with the sync-wave and the real `source-file-url`, then opens a PR.
+  2. `kind: API` — the schema the **edit** form draws its fields from. The edit
+     form looks it up by name (`<kind>-<group>--<version>`). The generator used
+     to make it; with generation off, we write it. **It copies the XRD's spec —
+     change both together.**
+- `definitions/_shared/backstage-template.yaml` — `update-claim`, the **edit**
+  flow for every kind. It shows up in an entity's **Scaffolder Content** tab
+  (label `target: component`). Based on the upstream `gitops-updater-template`,
+  with three changes: it **replaces** `spec` instead of deep-merging it (so
+  removed fields really go away), drops `""` and empty objects, and uses a
+  unique branch per run (`backstage-update-<path>-<millis>`).
 
-**Updater** (`gitops-manifest-updater` plugin + `gitops-updater-template`) — the
-edit flow for an XR that already exists. It shows up in the **Scaffolder Content** tab on an
-entity page. The template is loaded from the upstream repo at runtime (a catalog
-`location` in the values file); its fields come from our API document.
+**Updater field** (`gitops-manifest-updater` plugin) — the form widget on step 2
+of `update-claim`. It reads the claim file from Git as you, finds the API
+document, and draws the fields pre-filled.
 
 ## Who writes to Git
 
@@ -64,7 +69,8 @@ form submit ──▶ Backstage opens a PR ──▶ you review + merge ──�
 | Step | Who does it | Credential |
 |---|---|---|
 | Build the claim YAML (create) | our template: `roadiehq:utils:serialize:yaml` + `fs:write` | none |
-| Read the existing claim file (edit) | your browser, as you | your GitHub login (OAuth app) |
+| Read the existing claim file (edit form) | your browser, as you | your GitHub login (OAuth app) |
+| Replace `spec` in the claim file (edit) | `update-claim`: `fetch:plain:file` + `roadiehq:utils:jsonata:yaml:transform` + `fs:write` | the vault PAT, to download the file (Backstage's GitHub integration) |
 | Create branch + open the PR (create and edit) | scaffolder action `publish:github:pull-request` | the vault PAT (`GITHUB_TOKEN`) |
 | Merge | you | — |
 | Apply to the cluster | ArgoCD | — |
@@ -82,26 +88,22 @@ form submit ──▶ Backstage opens a PR ──▶ you review + merge ──�
   failed at ArgoCD sync (rejected by the XRD). Some bad values pass the XRD
   too and fail later inside the Workspace (`cidr: 172.16.0.0/12` — AWS allows
   /16 to /28). Review the PR diff. The create form does validate.
-- **Clearing a field in the edit form writes `""`, not "remove".** An integer
-  field then fails the XRD (`must be of type integer`), and a string field
-  stops falling back to the preset. Remove fields in Git directly.
-- **One open edit PR per claim.** The upstream template always uses the branch
-  `backstage-sourced-update-<path>`. While a PR from that branch is open, a new
-  edit fails with "Pull request already exists". Close it and delete the
-  branch first.
+- **The edit form writes `""` for a cleared field.** `update-claim` drops
+  those, so clearing a field removes it from the claim. (The upstream template
+  wrote the `""` into the file, and the sync failed.)
+- **Edit replaces the whole `spec`.** Anything the form doesn't show is dropped.
+  The form shows every field in our API document, so keep that document in
+  step with the XRD. YAML comments in the claim file are lost too (the file is
+  parsed and written back).
+- **Some removals are refused on purpose.** Removing or changing `cidr`,
+  changing `mode`, or lowering `azCount` makes a PR that ArgoCD can't sync. The
+  XRD's CEL rules reject it (platform-gitops ADR 0008).
+- **Every edit opens a new PR**, even with no changes (an empty diff). Close
+  empty ones.
 - **Edit flow needs the `terasky.backstage.io/source-file-url` annotation** on
   the claim, pointing at its file in Git. Without it, step 2 of the edit form
-  is blank. Claims made by our create form get it; hand-written ones need it
-  added.
-- **Edit flow can add and change fields, but not remove them.** The upstream
-  updater template deep-merges the form into the existing file
-  (`roadiehq:utils:merge`). A key you delete in the form is just missing, so
-  the merge keeps the old value and the PR comes out empty. This hits any
-  removal: a tag, or an optional field like `cidr`. Remove things by editing
-  the claim in Git directly. Real fix: own a copy of the template and replace
-  `spec` instead of merging (note: that also drops any field the form doesn't
-  show). The template also opens a PR when nothing changed — check the diff
-  before merging.
+  is blank, and `update-claim` fails with "no source-file-url annotation".
+  Claims made by our create form get it; hand-written ones need it added.
 - **Edit flow needs GitHub login.** Step 2 opens a GitHub popup. That is the
   OAuth app (`auth.providers.github`), not the PAT.
 - **Changes show up slowly.** New XRs, new XRDs and annotation changes can

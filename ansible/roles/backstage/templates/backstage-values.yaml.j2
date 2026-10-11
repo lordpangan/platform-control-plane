@@ -114,12 +114,6 @@ backstage:
           target: https://github.com/{{ backstage_gitops_owner }}/{{ backstage_gitops_repo }}/blob/main/definitions/*/backstage-template.yaml
           rules:
             - allow: [Template, API]
-        # Day-2 edit flow: the "Update Kubernetes Manifest" template behind the
-        # entity page's edit tab. Upstream (vrabbi-backstage), loaded at runtime.
-        - type: url
-          target: https://github.com/vrabbi-backstage/gitops-updater-template/blob/main/catalog-info.yaml
-          rules:
-            - allow: [Template]
     permission:
       enabled: false
     kubernetesIngestor:

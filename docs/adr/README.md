@@ -15,6 +15,7 @@ decision changes, add a new ADR that supersedes the old one.
 | [0007](./0007-gitops-bootstrap-seed.md) | The GitOps bootstrap seam: a seed here, content in the GitOps repo | Accepted |
 | [0008](./0008-argocd-health-check-for-crossplane-xrs.md) | Teach ArgoCD to read XR readiness with a Lua health check | Accepted |
 | [0009](./0009-backstage-deployment.md) | How Backstage is deployed: in the brain, by Ansible, prebuilt image | Accepted |
+| [0010](./0010-own-the-backstage-templates.md) | Own the Backstage templates; turn off generated forms | Accepted |
 
 > These two are system-wide decisions, so they live in the control-plane repo.
 > Repo-specific decisions live in that repo's own `docs/adr/`.
