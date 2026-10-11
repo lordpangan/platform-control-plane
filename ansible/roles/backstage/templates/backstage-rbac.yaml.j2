@@ -19,7 +19,7 @@ metadata:
   name: backstage-read
 rules:
   - apiGroups: [""]
-    resources: [namespaces, pods, services, configmaps, events]   # no secrets
+    resources: [namespaces, pods, services, configmaps, events, limitranges, resourcequotas]   # no secrets
     verbs: [get, list, watch]
   - apiGroups: [apps]
     resources: [deployments, replicasets, statefulsets, daemonsets]
@@ -35,6 +35,15 @@ rules:
     verbs: [get, list, watch]
   - apiGroups: [opentofu.m.upbound.io, opentofu.upbound.io]   # Workspaces
     resources: ["*"]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
     verbs: [get, list, watch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

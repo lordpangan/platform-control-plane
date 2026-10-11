@@ -2,6 +2,14 @@
 # is resolved by Backstage at runtime from env vars, so secrets never land in this file or in
 # the ConfigMap the chart builds from appConfig.
 backstage:
+  initContainers:
+    # After a VM reboot, CoreDNS can be up before it can answer. Backstage's
+    # first ingestion then fails and the in-memory catalog stays empty for
+    # 600s. Wait until cluster DNS (and upstream DNS) both resolve.
+    - name: wait-for-dns
+      image: busybox:1.36
+      command: ['sh', '-c', 'until nslookup kubernetes.default.svc.cluster.local && nslookup api.github.com; do echo waiting for DNS; sleep 2; done']
+
   image:
     registry: {{ backstage_image_registry }}
     repository: {{ backstage_image_repository }}
@@ -101,6 +109,11 @@ backstage:
           target: /app/backstage-config/config.yaml
           rules:
             - allow: [User, Group, System]
+        # Our own templates, one per API, next to its XRD in platform-gitops.
+        - type: url
+          target: https://github.com/{{ backstage_gitops_owner }}/{{ backstage_gitops_repo }}/blob/main/definitions/*/backstage-template.yaml
+          rules:
+            - allow: [Template, API]
         # Day-2 edit flow: the "Update Kubernetes Manifest" template behind the
         # entity page's edit tab. Upstream (vrabbi-backstage), loaded at runtime.
         - type: url
@@ -133,8 +146,10 @@ backstage:
         claims:
           ingestAllClaims: true
         xrds:
-          enabled: true
-          ingestAllXRDs: true
+          enabled: false       # no generated forms; we own the templates
+          ingestAllXRDs: true  # keep: it also tells the ingestor which XR kinds to catalog
+          # Unused while enabled: false — only the generated forms read these.
+          # Kept so turning generation back on works as before.
           convertDefaultValuesToPlaceholders: true
           publishPhase:
             allowRepoSelection: false
