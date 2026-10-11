@@ -50,6 +50,11 @@
     - role: functions
       tags: [functions]
 
+    # Monitoring: Prometheus + Grafana (kube-prometheus-stack). After the
+    # platform components, so the things it watches (Crossplane, ArgoCD) exist.
+    # - role: monitoring
+    #   tags: [monitoring, components]
+
     # Backstage: the developer front door. Runs last: it reads the XRDs Crossplane
     # serves (request forms + claim catalog) and talks to argocd-server. The GitHub
     # token lets it open PRs on platform-gitops.

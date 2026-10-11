@@ -69,6 +69,18 @@ argocd_gitops_revision: "main"
 argocd_gitops_bootstrap_path: "bootstrap"
 argocd_root_app_name: "platform-root-app"
 
+# --- Monitoring (helm, prometheus-community/kube-prometheus-stack) ---
+# chart 92.3.0 installs prometheus-operator v0.94.1, plus Prometheus, Grafana,
+# kube-state-metrics and node-exporter. Verified against the Helm repo index on
+# 2026-10-11.
+monitoring_namespace: monitoring
+monitoring_release_name: monitoring
+monitoring_chart_repo_name: prometheus-community
+monitoring_chart_repo_url: "https://prometheus-community.github.io/helm-charts"
+monitoring_chart_version: "92.3.0"
+monitoring_prometheus_retention: 7d
+monitoring_prometheus_storage_size: 10Gi
+
 # --- VM bootstrap (only used by the proxmox inventory) ---
 # When true, install docker/kind/kubectl/helm on a Debian/Ubuntu VM first.
 # Left false for local runs, where devbox (or brew) already provides the tools.

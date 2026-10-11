@@ -1,0 +1,70 @@
+# kube-prometheus-stack values for the brain. See the role README and ADR 0011.
+# Resource names come from fullnameOverride: monitoring-prometheus, monitoring-grafana.
+fullnameOverride: {{ monitoring_release_name }}
+
+# No delivery target (single-user lab), so no Alertmanager. Prometheus still
+# evaluates the rules; firing alerts show in the Prometheus and Grafana UIs.
+alertmanager:
+  enabled: false
+
+# kind binds these to 127.0.0.1 inside the node container, so Prometheus can't
+# scrape them. Up/down and restarts are still visible via kube-state-metrics
+# (they run as pods in kube-system). Their rules go too, or they fire forever.
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+defaultRules:
+  rules:
+    alertmanager: false
+    etcd: false
+    kubeControllerManager: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+
+prometheus:
+  prometheusSpec:
+    # Pick up ServiceMonitors / PodMonitors / PrometheusRules from every
+    # namespace, not only ones labelled with this release (ArgoCD's live in argocd).
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+    retention: {{ monitoring_prometheus_retention }}
+    # Stop before the volume fills: whichever limit hits first wins.
+    retentionSize: 8GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard     # kind's local-path provisioner
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: {{ monitoring_prometheus_storage_size }}
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi
+
+grafana:
+  # No adminPassword: the chart generates one into the monitoring-grafana
+  # Secret (key admin-password). Read it with `make grafana-password-vm`.
+  # A rebuild generates a new one.
+  adminUser: admin
+  # Dashboards come from ConfigMaps (sidecar), so Grafana needs no volume.
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi

@@ -1,0 +1,37 @@
+---
+# Install kube-prometheus-stack via Helm (idempotent: helm upgrade --install).
+- name: Add the prometheus-community helm repo
+  ansible.builtin.command: "helm repo add {{ monitoring_chart_repo_name }} {{ monitoring_chart_repo_url }} --force-update"
+  register: repo_add
+  changed_when: "'has been added' in repo_add.stdout"
+
+- name: Update the prometheus-community helm repo
+  ansible.builtin.command: "helm repo update {{ monitoring_chart_repo_name }}"
+  changed_when: false
+
+- name: Render the monitoring Helm values
+  ansible.builtin.template:
+    src: monitoring-values.yaml.j2
+    dest: "{{ kind_config_remote | dirname }}/monitoring-values.yaml"
+  changed_when: false
+
+- name: Install/upgrade kube-prometheus-stack
+  ansible.builtin.command: >-
+    helm upgrade --install {{ monitoring_release_name }}
+    {{ monitoring_chart_repo_name }}/kube-prometheus-stack
+    --kube-context {{ kube_context }}
+    --namespace {{ monitoring_namespace }} --create-namespace
+    --version {{ monitoring_chart_version }}
+    --values {{ kind_config_remote | dirname }}/monitoring-values.yaml
+    --wait --timeout 600s
+  register: monitoring_install
+  changed_when: >-
+    'has been upgraded' in monitoring_install.stdout
+    or 'has been installed' in monitoring_install.stdout
+
+- name: How to reach Grafana and Prometheus
+  ansible.builtin.debug:
+    msg:
+      - "kube-prometheus-stack installed in namespace '{{ monitoring_namespace }}'."
+      - "Grafana:     make grafana-ui-vm     -> http://localhost:3000 (user: admin, password: make grafana-password-vm)"
+      - "Prometheus:  make prometheus-ui-vm  -> http://localhost:9090"

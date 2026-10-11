@@ -17,7 +17,7 @@ VM_SSH    = $(call vm_fact,ansible_user)@$(call vm_fact,ansible_host)
 VM_ENV    = export PATH="$(call vm_fact,tools_path):$$PATH";
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-vm down down-vm status status-vm argocd-password argocd-password-vm argocd-ui argocd-ui-vm argocd-apps-vm backstage-ui backstage-ui-vm bootstrap-aws teardown-aws-state
+.PHONY: help up up-vm down down-vm status status-vm argocd-password argocd-password-vm argocd-ui argocd-ui-vm argocd-apps-vm backstage-ui backstage-ui-vm grafana-password grafana-password-vm grafana-ui grafana-ui-vm prometheus-ui prometheus-ui-vm bootstrap-aws teardown-aws-state
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -72,6 +72,34 @@ backstage-ui-vm:  ## Tunnel + port-forward the VM's Backstage UI to http://local
 	@echo "Ctrl-C to close the tunnel."
 	@ssh -L 7007:localhost:7007 $(VM_SSH) \
 	  '$(VM_ENV) kubectl -n backstage port-forward svc/backstage 7007:7007'
+
+grafana-password:  ## Print the Grafana admin password (local cluster)
+	@kubectl --context kind-$(CLUSTER) -n monitoring get secret monitoring-grafana \
+	  -o jsonpath='{.data.admin-password}' | base64 -d; echo
+
+grafana-password-vm:  ## Print the Grafana admin password (Proxmox VM cluster)
+	@ssh $(VM_SSH) '$(VM_ENV) kubectl -n monitoring get secret monitoring-grafana \
+	  -o jsonpath="{.data.admin-password}" | base64 -d'; echo
+
+grafana-ui:  ## Port-forward Grafana to http://localhost:3000 (local cluster)
+	@echo "Grafana -> http://localhost:3000   (user: admin, password: make grafana-password)"
+	@kubectl --context kind-$(CLUSTER) -n monitoring port-forward svc/monitoring-grafana 3000:80
+
+grafana-ui-vm:  ## Tunnel + port-forward the VM's Grafana to http://localhost:3000
+	@echo "Grafana -> http://localhost:3000   (user: admin, password: make grafana-password-vm)"
+	@echo "Ctrl-C to close the tunnel."
+	@ssh -L 3000:localhost:3000 $(VM_SSH) \
+	  '$(VM_ENV) kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80'
+
+prometheus-ui:  ## Port-forward Prometheus to http://localhost:9090 (local cluster)
+	@echo "Prometheus -> http://localhost:9090   (Status > Targets, Alerts)"
+	@kubectl --context kind-$(CLUSTER) -n monitoring port-forward svc/monitoring-prometheus 9090:9090
+
+prometheus-ui-vm:  ## Tunnel + port-forward the VM's Prometheus to http://localhost:9090
+	@echo "Prometheus -> http://localhost:9090   (Status > Targets, Alerts)"
+	@echo "Ctrl-C to close the tunnel."
+	@ssh -L 9090:localhost:9090 $(VM_SSH) \
+	  '$(VM_ENV) kubectl -n monitoring port-forward svc/monitoring-prometheus 9090:9090'
 
 bootstrap-aws:  ## One-time: create the AWS state backend + scoped IAM user
 	@aws sts get-caller-identity --profile $(AWS_PROFILE_BOOTSTRAP) >/dev/null 2>&1 \
