@@ -33,7 +33,7 @@ backstage:
           name: backstage-sa-token
           key: token
 
-  # GITHUB_TOKEN, ARGOCD_PASSWORD, created by the role from the vault.
+  # GITHUB_APP_*, ARGOCD_PASSWORD, AUTH_GITHUB_*, created by the role from the vault.
   extraEnvVarsSecrets:
     - backstage-secrets
 
@@ -84,8 +84,15 @@ backstage:
           - host: raw.githubusercontent.com
     integrations:
       github:
+        # A GitHub App, not a PAT: PRs are authored by the app's bot, so you can
+        # review and approve them (platform-gitops ADR 0009).
         - host: github.com
-          token: ${GITHUB_TOKEN}
+          apps:
+            - appId: ${GITHUB_APP_ID}
+              clientId: ${GITHUB_APP_CLIENT_ID}
+              clientSecret: ${GITHUB_APP_CLIENT_SECRET}
+              privateKey: ${GITHUB_APP_PRIVATE_KEY}
+              allowedInstallationOwners: ['{{ backstage_gitops_owner }}']
     techdocs:
       builder: local
       generator:

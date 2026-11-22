@@ -12,7 +12,7 @@ Open it with `make backstage-ui-vm`, then go to http://localhost:7007.
 |---|---|
 | `backstage` namespace | Created first; RBAC and secrets go in before Helm runs. |
 | ServiceAccount `backstage` + `backstage-read` ClusterRole | Read-only access to XRDs, XRs, Workspaces and workloads. No Secrets. |
-| Secret `backstage-secrets` | From the vault: `GITHUB_TOKEN` (PAT), `ARGOCD_PASSWORD`, `AUTH_GITHUB_CLIENT_ID/SECRET` (OAuth app). |
+| Secret `backstage-secrets` | From the vault: `GITHUB_APP_*` (GitHub App), `ARGOCD_PASSWORD`, `AUTH_GITHUB_CLIENT_ID/SECRET` (OAuth app). |
 | Helm release `backstage` | The pod. Config is in `templates/backstage-values.yaml.j2`. |
 
 Secrets stay as `${VAR}` in the values file. Backstage fills them in at
@@ -70,16 +70,15 @@ form submit ──▶ Backstage opens a PR ──▶ you review + merge ──�
 |---|---|---|
 | Build the claim YAML (create) | our template: `roadiehq:utils:serialize:yaml` + `fs:write` | none |
 | Read the existing claim file (edit form) | your browser, as you | your GitHub login (OAuth app) |
-| Replace `spec` in the claim file (edit) | `update-claim`: `fetch:plain:file` + `roadiehq:utils:jsonata:yaml:transform` + `fs:write` | the vault PAT, to download the file (Backstage's GitHub integration) |
-| Create branch + open the PR (create and edit) | scaffolder action `publish:github:pull-request` | the vault PAT (`GITHUB_TOKEN`) |
+| Replace `spec` in the claim file (edit) | `update-claim`: `fetch:plain:file` + `roadiehq:utils:jsonata:yaml:transform` + `fs:write` | the GitHub App, to download the file (Backstage's GitHub integration) |
+| Create branch + open the PR (create and edit) | scaffolder action `publish:github:pull-request` | the GitHub App. The PR author is the app's bot, so you can approve it. |
 | Merge | you | — |
 | Apply to the cluster | ArgoCD | — |
 
 ## Gotchas
 
-- **No XEKSCluster form or API document yet.** Only `definitions/network/`
-  has a `backstage-template.yaml`. Request an EKS cluster by writing the claim
-  in Git; editing one from Backstage fails with "No matching API entity found".
+- **The EKS form creates a real cluster when its PR is merged.** It costs
+  money. To test the form, check the PR and close it without merging.
 - **"No matching API entity found" on edit** means the API document for that
   kind is missing, misnamed, or not allowed by the location's
   `rules: allow: [Template, API]`.
@@ -105,7 +104,29 @@ form submit ──▶ Backstage opens a PR ──▶ you review + merge ──�
   is blank, and `update-claim` fails with "no source-file-url annotation".
   Claims made by our create form get it; hand-written ones need it added.
 - **Edit flow needs GitHub login.** Step 2 opens a GitHub popup. That is the
-  OAuth app (`auth.providers.github`), not the PAT.
+  OAuth app (`auth.providers.github`), not the GitHub App. Sign-in moves to the
+  GitHub App once Backstage has an HTTPS hostname.
+- **Open http://localhost:7007, not 127.0.0.1.** On 127.0.0.1 the GitHub
+  popup logs in, then fails with "popup was closed". Backstage sends the login
+  result only to its `baseUrl` (`localhost`).
+
+## GitHub App
+
+Backstage talks to GitHub as a GitHub App, not as a person. Example: a create
+form opens a PR authored by `<app-name>[bot]`. So you review and approve it as
+yourself (platform-gitops ADR 0009).
+
+Settings (GitHub → Settings → Developer settings → GitHub Apps → New):
+
+- **Webhook:** off. Backstage doesn't use it.
+- **Repository permissions:** Contents read/write, Pull requests read/write,
+  Metadata read.
+- **Install:** on your account, `platform-gitops` only.
+
+Put the App ID, client ID, client secret and private key in the vault as
+`vault_github_app_id`, `vault_github_app_client_id`,
+`vault_github_app_client_secret` and `vault_github_app_private_key` (the whole
+`.pem`, as a `|` block). Only installs owned by `backstage_gitops_owner` are used.
 - **Changes show up slowly.** New XRs, new XRDs and annotation changes can
   take up to 10 minutes (the 600s poll). Restart the pod to refresh now.
 - **Sign-in is guest only.** Everyone is the same user and permissions are

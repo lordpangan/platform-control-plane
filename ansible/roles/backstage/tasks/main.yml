@@ -34,7 +34,7 @@
   register: bs_rbac
   changed_when: bs_rbac.stdout is search('created|configured')
 
-- name: Create the Backstage GitHub token Secret
+- name: Create the Backstage secrets
   ansible.builtin.command:
     cmd: kubectl --context {{ kube_context }} apply -f -
     stdin: |
@@ -45,10 +45,13 @@
         namespace: {{ backstage_namespace }}
       type: Opaque
       stringData:
-        GITHUB_TOKEN: {{ backstage_github_token | to_json }}
         ARGOCD_PASSWORD: {{ backstage_argocd_password | to_json }}
         AUTH_GITHUB_CLIENT_ID: {{ backstage_github_oauth_client_id | to_json }}
         AUTH_GITHUB_CLIENT_SECRET: {{ backstage_github_oauth_client_secret | to_json }}
+        GITHUB_APP_ID: {{ backstage_github_app_id | string | to_json }}
+        GITHUB_APP_CLIENT_ID: {{ backstage_github_app_client_id | to_json }}
+        GITHUB_APP_CLIENT_SECRET: {{ backstage_github_app_client_secret | to_json }}
+        GITHUB_APP_PRIVATE_KEY: {{ backstage_github_app_private_key | to_json }}
   register: bs_secret
   changed_when: "'unchanged' not in bs_secret.stdout"
   no_log: true
