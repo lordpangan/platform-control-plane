@@ -74,3 +74,41 @@ Healthy in the same poll the XR reached `READY=True`. The two now move in lockst
   reason is noted in learning record 0007; it improves diagnosis, not gating.
 - The check reads only `Ready`. It deliberately ignores `Synced`, since an XR can
   be Synced (composition reconciled) long before it is Ready (resources built).
+  *(Amended 2026-11-22, see below.)*
+
+## Amendment (2026-11-22): `Synced=False` is Degraded
+
+Ignoring `Synced` hid a real failure. Claims now pin a Composition by its
+`release` label (platform-gitops ADR 0009). Say a claim pins `0.1.2`, and no
+revision has that label. Crossplane then:
+
+- keeps the claim on its current revision, so its resources still run and
+  `Ready` stays `True`;
+- sets `Synced=False` with `cannot fetch Composition: no compatible
+  CompositionRevisions found`.
+
+With `Ready` only, ArgoCD showed that claim as **Healthy**. Nobody would see it.
+
+**The check now reads both conditions, in this order:**
+
+1. `Synced=False` → **Degraded**, with Crossplane's message.
+2. `Ready=True` → **Healthy**.
+3. Anything else → **Progressing**.
+
+`Synced` goes first because of the bad pin above: there, `Ready` is still `True`.
+
+This also does the follow-up named above. A failed apply that sets
+`Synced=False` now shows as Degraded, not Progressing forever. A failure that
+leaves `Synced=True` (for example, a stuck OpenTofu run inside the Workspace)
+still shows as Progressing.
+
+The script is written once in the values template, in a Jinja loop over the
+kinds. A new XR kind now needs one more name in that list, not a copied script.
+
+Degraded is not Healthy, so it still holds the next sync wave. A short
+`Synced=False` during a normal reconcile would show as Degraded until the next
+poll. That has not been seen yet; watch for it.
+
+Tested before the apply: the rendered script was run with Lua against four
+objects (healthy, bad pin, building, no status) for both kinds, and against
+the live `prd-vpc` conditions (Healthy).

@@ -2,31 +2,30 @@ configs:
   params:
     server.insecure: true     # argocd-server serves HTTP in-cluster; Backstage (and port-forward) reach it without TLS
   cm:
-    resource.customizations.health.platform.meridian.io_XNetwork: |
+    # One health check per platform XR kind (ADR 0008). Add a new kind to this list.
+    # Synced=False comes first: a claim pinned to a release with no revision keeps
+    # Ready=True (its old resources still run), so Ready alone would show Healthy.
+{% for kind in ['XNetwork', 'XEKSCluster'] %}
+    resource.customizations.health.platform.meridian.io_{{ kind }}: |
       local hs = {}
+      local ready, synced = nil, nil
       if obj.status ~= nil and obj.status.conditions ~= nil then
         for _, c in ipairs(obj.status.conditions) do
-          if c.type == "Ready" and c.status == "True" then
-            hs.status = "Healthy"
-            hs.message = "Xnetwork is Ready"
-            return hs
-          end
+          if c.type == "Ready" then ready = c end
+          if c.type == "Synced" then synced = c end
         end
       end
-      hs.status = "Progressing"
-      hs.message = "Xnetwork is waiting for Ready condition"
-      return hs
-    resource.customizations.health.platform.meridian.io_XEKSCluster: |
-      local hs = {}
-      if obj.status ~= nil and obj.status.conditions ~= nil then
-        for _, c in ipairs(obj.status.conditions) do
-          if c.type == "Ready" and c.status == "True" then
-            hs.status = "Healthy"
-            hs.message = "XEKSCluster is Ready"
-            return hs
-          end
-        end
+      if synced ~= nil and synced.status == "False" then
+        hs.status = "Degraded"
+        hs.message = "{{ kind }} is not Synced: " .. (synced.message or synced.reason or "no message")
+        return hs
+      end
+      if ready ~= nil and ready.status == "True" then
+        hs.status = "Healthy"
+        hs.message = "{{ kind }} is Ready"
+        return hs
       end
       hs.status = "Progressing"
-      hs.message = "XEKSCluster is waiting for Ready condition"
+      hs.message = "{{ kind }} is waiting for Ready condition"
       return hs
+{% endfor %}
